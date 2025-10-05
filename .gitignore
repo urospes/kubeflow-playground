@@ -21,4 +21,4 @@ __pycache__/
 *$py.class
 
 #Custom
-setup/kubeflow-config.yaml
+kubeflow-k8s/setup/kubeflow-config.yaml
