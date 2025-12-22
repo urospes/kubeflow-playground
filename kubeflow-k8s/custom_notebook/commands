@@ -1,0 +1,1 @@
+docker build --ssh default -t urospes/kubeflow-vscode-custom -f vscode.custom.Dockerfile .

@@ -1,2 +1,3 @@
 torch==2.8.0
 seaborn==0.13.2
+kubeflow
