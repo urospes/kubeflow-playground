@@ -57,5 +57,6 @@ kubectl apply --server-side -f "$BASE_DIR"/cluster-training-runtimes/torch_distr
 # RBAC, configure permissions for default-editor service account
 kubectl apply  -f "$BASE_DIR"/rbac/training-permissions.yaml
 
-# IF PODDEFAULT IS NECCESSARY TO RUN KFP, ADD KUBECTL APPLY HERE
+kubectl apply -f poddefault-pipelines-token.yaml
+
 echo "Cluster created succefully. Kubeflow is up and running..."
