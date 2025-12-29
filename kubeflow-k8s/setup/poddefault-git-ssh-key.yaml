@@ -1,0 +1,19 @@
+apiVersion: kubeflow.org/v1alpha1
+kind: PodDefault
+metadata:
+  name: access-git-repo
+  namespace: kubeflow-user-example-com
+spec:
+  desc: Allow access to Kubeflow App git repository
+  selector:
+    matchLabels:
+      access-ml-pipeline: "true"
+  volumes:
+    - name: volume-ssh-key
+      secret:
+        secretName: git-ssh-key
+        defaultMode: 0400
+  volumeMounts:
+    - mountPath: /home/jovyan/.ssh
+      name: volume-ssh-key
+      readOnly: true

@@ -5,6 +5,8 @@ ARG PYTHON_VERSION_DEV=3.12
 
 USER root
 
+RUN apt-get update && apt-get install -y openssh-client
+
 RUN sed -i -E "s|^\s*conda activate\s+.*|conda activate ${CONDA_ENV}|" ${HOME_TMP}/.bashrc \
     && sed -i -E "s|^\s*conda activate\s+.*|conda activate ${CONDA_ENV}|" /etc/profile
     
@@ -20,7 +22,8 @@ RUN conda create -y -q \
 
 RUN source ${HOME_TMP}/.bashrc \
     && pip3 install --no-cache-dir -r /tmp/dev.requirements.txt
-    
-RUN mkdir ${HOME_TMP}/app
-ADD git@github.com:urospes/kubeflow-playground.git ${HOME_TMP}/app
 
+COPY --chown=${NB_USER}:${NB_GID} notebook_startup.sh /tmp
+RUN chmod +x /tmp/notebook_startup.sh
+
+ENTRYPOINT ["/tmp/notebook_startup.sh"]
