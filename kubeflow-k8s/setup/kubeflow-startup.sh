@@ -59,7 +59,7 @@ kubectl apply  -f "$BASE_DIR"/rbac/training-permissions.yaml
 
 # Creating private ssh secret and pod defaults - in order for KFP and Git to be available inside notebook pods
 kubectl create secret generic git-ssh-key --from-file=id_ed25519=/home/uros/.ssh/id_ed25519 --from-file=known_hosts=/home/uros/.ssh/known_hosts -n kubeflow-user-example-com
-kubectl apply -f poddefault-pipelines-token.yaml
-kubectl apply -f poddefault-git-ssh-key.yaml
+kubectl apply -f "$BASE_DIR"/poddefault-pipelines-token.yaml
+kubectl apply -f "$BASE_DIR"/poddefault-git-ssh-key.yaml
 
 echo "Cluster created succefully. Kubeflow is up and running..."
