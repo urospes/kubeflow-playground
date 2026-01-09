@@ -26,4 +26,5 @@ RUN source ${HOME_TMP}/.bashrc \
 COPY --chown=${NB_USER}:${NB_GID} notebook_startup.sh /tmp
 RUN chmod +x /tmp/notebook_startup.sh
 
+ENV PYTHONPATH=/home/jovyan/kubeflow-playground/src
 ENTRYPOINT ["/tmp/notebook_startup.sh"]

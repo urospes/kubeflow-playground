@@ -1,9 +1,10 @@
 from kfp import dsl, client
-from pipelines import components
+from pipelines.components import extract_data as extractor
+
 
 @dsl.pipeline(name="maternity-prediction")
 def maternity_prediction_pipeline():
-    extract_task = components.extract_data()
+    extract_task = extractor.extract_data()
 
 
 if __name__ == "__main__":
