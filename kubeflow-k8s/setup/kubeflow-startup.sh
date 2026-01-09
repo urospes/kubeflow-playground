@@ -52,14 +52,15 @@ TRAINER_VERSION="master"
 kubectl apply --server-side -k "https://github.com/kubeflow/trainer.git/manifests/overlays/manager?ref=${TRAINER_VERSION}"
 sleep 60
 echo "Creating pytorch training runtime..."
-kubectl apply --server-side -f "$BASE_DIR"/cluster-training-runtimes/torch_distributed.yaml
+kubectl apply --server-side -f "$BASE_DIR"/cluster-training-runtimes/
 
 # RBAC, configure permissions for default-editor service account
-kubectl apply  -f "$BASE_DIR"/rbac/training-permissions.yaml
+kubectl apply  -f "$BASE_DIR"/rbac/
 
 # Creating private ssh secret and pod defaults - in order for KFP and Git to be available inside notebook pods
 kubectl create secret generic git-ssh-key --from-file=id_ed25519=/home/uros/.ssh/id_ed25519 --from-file=known_hosts=/home/uros/.ssh/known_hosts -n kubeflow-user-example-com
 kubectl apply -f "$BASE_DIR"/poddefault-pipelines-token.yaml
 kubectl apply -f "$BASE_DIR"/poddefault-git-ssh-key.yaml
 
+kubectl apply -f "$BASE_DIR"/services/
 echo "Cluster created succefully. Kubeflow is up and running..."
