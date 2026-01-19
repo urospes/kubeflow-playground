@@ -1,6 +1,6 @@
 from kfp import dsl
 
-
+#TODO: switch to pandas from polars, use env variables for credentials, consider using predefined loader component
 @dsl.component(
     base_image="python:3.12",
     packages_to_install=["polars", "boto3"],

@@ -40,7 +40,7 @@ def visualize_data(
             1, len(cols_of_interest), figsize=(5 * len(cols_of_interest), 5)
         )
         for i, column in enumerate(cols_of_interest):
-            ax[i].set_title(f"{column} histogram")
+            ax[i].set_title(f"{column}")
             sb.histplot(data=dataset, x=column, kde=True, ax=ax[i])
         return fig
 
@@ -89,7 +89,7 @@ def visualize_data(
         plots.append(
             plot_func(
                 dataset=data,
-                cols_of_interest=data.select_dtypes(include="number").columns,
+                cols_of_interest=tuple(data.select_dtypes(include="number").columns),
             )
         )
 
