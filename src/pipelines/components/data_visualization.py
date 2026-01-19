@@ -14,7 +14,7 @@ def visualize_data(
     import functools
     import base64
     import io
-    from typing import Tuple
+    from typing import List
 
     def save_plot(func):
         @functools.wraps(func)
@@ -35,7 +35,7 @@ def visualize_data(
         sb.set_style(style="whitegrid")
 
     @save_plot
-    def plot_hist(dataset: pd.DataFrame, cols_of_interest: Tuple[str]) -> plt.Figure:
+    def plot_hist(dataset: pd.DataFrame, cols_of_interest: List[str]) -> plt.Figure:
         fig, ax = plt.subplots(
             1, len(cols_of_interest), figsize=(5 * len(cols_of_interest), 5)
         )
@@ -46,7 +46,7 @@ def visualize_data(
 
     @save_plot
     def plot_corr_matrix(
-        dataset: pd.DataFrame, cols_of_interest: Tuple[str]
+        dataset: pd.DataFrame, cols_of_interest: List[str]
     ) -> plt.Figure:
         fig, ax = plt.subplots()
         plt.title("Correlation Matrix")
@@ -63,7 +63,7 @@ def visualize_data(
         return fig
 
     @save_plot
-    def pairplot(dataset: pd.DataFrame, cols_of_interest: Tuple[str]) -> plt.Figure:
+    def pairplot(dataset: pd.DataFrame, cols_of_interest: List[str]) -> plt.Figure:
         grid = sb.pairplot(dataset[cols_of_interest])
         grid.fig.suptitle("Pairplot")
         return grid.fig
@@ -89,7 +89,7 @@ def visualize_data(
         plots.append(
             plot_func(
                 dataset=data,
-                cols_of_interest=tuple(data.select_dtypes(include="number").columns),
+                cols_of_interest=list(data.select_dtypes(include="number").columns),
             )
         )
 
