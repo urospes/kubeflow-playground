@@ -7,7 +7,7 @@ spec:
   desc: Allow access to Kubeflow App git repository
   selector:
     matchLabels:
-      access-ml-pipeline: "true"
+      access-git-repo: "true"
   volumes:
     - name: volume-ssh-key
       secret:
