@@ -1,12 +1,15 @@
 from kfp import dsl, client
 from pipelines.components import extract_data as extractor
 from pipelines.components import data_visualization as visualization
+from pipelines.components import feature_transformation as feature_transformator
 
 
 @dsl.pipeline(name="maternity-prediction")
 def maternity_prediction_pipeline():
     extract_task = extractor.extract_data()
-    _ = visualization.visualize_data(dataset=extract_task.output)
+    visualization.visualize_data(dataset=extract_task.output)
+    transformation_task = feature_transformator.feature_transformation(raw_dataset=extract_task.output, test_size=0.2)
+    visualization.visualize_data(dataset=transformation_task.outputs["train_dataset"])
 
 
 if __name__ == "__main__":
