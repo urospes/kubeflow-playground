@@ -10,6 +10,7 @@ def maternity_prediction_pipeline():
     visualization.visualize_data(dataset=extract_task.output)
     transformation_task = feature_transformator.feature_transformation(raw_dataset=extract_task.output, test_size=0.2)
     visualization.visualize_data(dataset=transformation_task.outputs["train_dataset"])
+    visualization.visualize_data(dataset=transformation_task.outputs["test_dataset"])
 
 
 if __name__ == "__main__":

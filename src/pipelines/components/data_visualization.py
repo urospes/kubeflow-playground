@@ -6,7 +6,7 @@ from kfp import dsl
     packages_to_install=["pandas", "seaborn"],
 )
 def visualize_data(
-    dataset: dsl.Input[dsl.Dataset], visualization: dsl.Output[dsl.HTML]
+    dataset: dsl.Input[dsl.Dataset], visualization_report: dsl.Output[dsl.HTML]
 ):
     import seaborn as sb
     import pandas as pd
@@ -41,7 +41,7 @@ def visualize_data(
         )
         for i, column in enumerate(cols_of_interest):
             ax[i].set_title(f"{column}")
-            sb.histplot(data=dataset, x=column, kde=True, ax=ax[i])
+            sb.histplot(data=dataset, x=column, kde=True, bins=20, ax=ax[i])
         return fig
 
     @save_plot
@@ -93,5 +93,5 @@ def visualize_data(
             )
         )
 
-    with open(visualization.path, "w") as file:
+    with open(visualization_report.path, "w") as file:
         file.write(make_html(plots=plots))

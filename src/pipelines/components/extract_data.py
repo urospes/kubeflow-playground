@@ -3,10 +3,10 @@ from kfp import dsl
 #TODO: switch to pandas from polars, use env variables for credentials, consider using predefined loader component
 @dsl.component(
     base_image="python:3.12",
-    packages_to_install=["polars", "boto3"],
+    packages_to_install=["pandas", "boto3"],
 )
 def extract_data(raw_dataset: dsl.Output[dsl.Dataset]):
-    import polars as pl
+    import pandas as pd
     import io
     import boto3
     from botocore.client import Config
@@ -20,6 +20,6 @@ def extract_data(raw_dataset: dsl.Output[dsl.Dataset]):
         config=Config(signature_version="s3v4"),
     )
     file = s3.get_object(Bucket="iot-data", Key="mat_health.csv")["Body"].read()
-    data = pl.read_csv(io.BytesIO(file), infer_schema_length=None)
+    data = pd.read_csv(io.BytesIO(file))
     print(data.head())
-    data.write_csv(raw_dataset.path)
+    data.to_csv(raw_dataset.path, index=False)
