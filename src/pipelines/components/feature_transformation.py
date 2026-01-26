@@ -59,7 +59,7 @@ def feature_transformation(
     log_transform_col_names = ["BS", "BodyTemp", "HeartRate"]
     rbf_transform_col_names = ["SystolicBP", "DiastolicBP"]
 
-    scaler = sklearn.preprocessing.StandardScaler().set_output(transform="pandas")
+    scaler = sklearn.preprocessing.StandardScaler()
 
     train, test = sklearn.model_selection.train_test_split(
         dataset, test_size=test_size, random_state=42, stratify=dataset[label_col]
@@ -69,20 +69,20 @@ def feature_transformation(
 
     for dataset in (train, test):
         dataset[label_col] = transform_labels(dataset[label_col])
-        # dataset[scale_standard_col_names] = scaler.transform(
-        #     dataset[scale_standard_col_names]
-        # )
+        dataset[scale_standard_col_names] = scaler.transform(
+            dataset[scale_standard_col_names]
+        )
         dataset[log_transform_col_names] = dataset[log_transform_col_names].transform(
             np.log
         )
-        # dataset[rbf_transform_col_names] = rbf_similarity_transform(
-        #     dataset=dataset[rbf_transform_col_names],
-        #     modes=np.array([120, 80]),
-        #     gammas=[0.007, 0.01],
-        # )
+        dataset[rbf_transform_col_names] = rbf_similarity_transform(
+            dataset=dataset[rbf_transform_col_names],
+            modes=np.array([120, 80]),
+            gammas=[0.007, 0.01],
+        )
 
     print(train.head())
     print(test.head())
 
-    train.to_csv(train_dataset.path)
-    test.to_csv(test_dataset.path)
+    train.to_csv(train_dataset.path, index=False)
+    test.to_csv(test_dataset.path, index=False)
