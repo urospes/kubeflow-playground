@@ -90,37 +90,16 @@ def feature_transformation(
         remainder="passthrough",
         verbose_feature_names_out=False,
     ).set_output(transform="pandas")
-
+    
     train, test = sklearn.model_selection.train_test_split(
         dataset, test_size=test_size, random_state=42, stratify=dataset[label_col]
     )
 
     train = preprocessor.fit_transform(train)
-    test = preprocessor.transform(test)
-
     print(train.info())
+
+    test = preprocessor.transform(test)
     print(test.info())
-
-    # scaler = sklearn.preprocessing.RobustScaler()
-    # scaler = scaler.fit(train[scale_standard_col_names])
-
-    # for dataset in (train, test):
-    #     dataset[label_col] = transform_labels(dataset[label_col])
-    #     dataset[log_transform_col_names] = dataset[log_transform_col_names].transform(
-    #         np.log
-    #     )
-    #     dataset[pow_transform_col_names] = dataset[pow_transform_col_names].transform(
-    #         lambda x: np.pow(x, 2)
-    #     )
-    #     dataset[rbf_transform_col_names] = rbf_similarity_transform(
-    #         dataset=dataset[rbf_transform_col_names],
-    #         modes=np.array([120, 80]),
-    #         gammas=[0.01, 0.01],
-    #     )
-    #     dataset[scale_standard_col_names] = scaler.transform(
-    #         dataset[scale_standard_col_names]
-    #     )
-    #     print(dataset.info())
 
     train.to_csv(train_dataset.path, index=False)
     test.to_csv(test_dataset.path, index=False)
