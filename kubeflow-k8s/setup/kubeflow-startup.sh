@@ -10,7 +10,7 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
-  image: kindest-nvidia:1.0
+  image: kindest-nvidia:1.1
   extraMounts:
     - hostPath: /dev/null
       containerPath: /var/run/nvidia-container-devices/all
@@ -63,4 +63,13 @@ kubectl apply -f "$BASE_DIR"/poddefault-pipelines-token.yaml
 kubectl apply -f "$BASE_DIR"/poddefault-git-ssh-key.yaml
 
 kubectl apply -f "$BASE_DIR"/services/
-echo "Cluster created succefully. Kubeflow is up and running..."
+
+# This fixes a login bug that started to occur "Jwt verification fails"
+kubectl patch sidecar default -n istio-system --type='json' -p='[{"op": "add", "path": "/spec/egress/0/hosts/-", "value": "auth/*"}]'
+kubectl patch requestauthentication dex-jwt -n istio-system --type='json' -p='[{"op": "add", "path": "/spec/jwtRules/0/jwksUri", "value": "http://dex.auth.svc.cluster.local:5556/dex/keys"}]'
+kubectl set env deployment/istiod -n istio-system PILOT_JWT_ENABLE_REMOTE_JWKS=envoy
+sleep 5
+kubectl rollout restart deployment/istiod -n istio-system
+kubectl rollout restart deployment/istio-ingressgateway -n istio-system
+sleep 20
+echo "Cluster created successfully. Kubeflow is up and running..."
