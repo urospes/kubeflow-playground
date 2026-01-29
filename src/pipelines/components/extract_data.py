@@ -11,12 +11,12 @@ def extract_data(raw_dataset: dsl.Output[dsl.Dataset]):
     import boto3
     from botocore.client import Config
 
-    MINIO_ENDPOINT = "http://minio-access-service.kubeflow.svc.cluster.local:9000"
+    MINIO_ENDPOINT = "http://minio-access-service.minio.svc.cluster.local:9000"
     s3 = boto3.client(
         "s3",
         endpoint_url=MINIO_ENDPOINT,
-        aws_access_key_id="minio",
-        aws_secret_access_key="minio123",
+        aws_access_key_id="minioadmin",
+        aws_secret_access_key="minioadmin",
         config=Config(signature_version="s3v4"),
     )
     file = s3.get_object(Bucket="iot-data", Key="mat_health.csv")["Body"].read()
