@@ -42,17 +42,17 @@ sleep 60
 
 # Kubeflow deploy
 echo "Creating Kubeflow objects."
-cd "$BASE_DIR"/manifests-master
+cd "$BASE_DIR"/manifests-1.11.0
 while ! kubectl kustomize example | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying to apply resources"; sleep 60; done
 
-# Training manager, training runtimes
-sleep 60
-echo "Creating CRDs for Kubeflow Trainer..."
-TRAINER_VERSION="master"
-kubectl apply --server-side -k "https://github.com/kubeflow/trainer.git/manifests/overlays/manager?ref=${TRAINER_VERSION}"
-sleep 60
-echo "Creating pytorch training runtime..."
-kubectl apply --server-side -f "$BASE_DIR"/cluster-training-runtimes/
+# # Training manager, training runtimes
+# sleep 60
+# echo "Creating CRDs for Kubeflow Trainer..."
+# TRAINER_VERSION="v2.1.0"
+# kubectl apply --server-side -k "https://github.com/kubeflow/trainer.git/manifests/overlays/manager?ref=${TRAINER_VERSION}"
+# sleep 60
+# echo "Creating pytorch training runtime..."
+# kubectl apply --server-side -f "$BASE_DIR"/cluster-training-runtimes/
 
 # RBAC, configure permissions for default-editor service account
 kubectl apply  -f "$BASE_DIR"/rbac/
@@ -65,7 +65,7 @@ kubectl apply -f "$BASE_DIR"/poddefault-git-ssh-key.yaml
 kubectl apply -f "$BASE_DIR"/services/
 
 # This fixes a login bug that started to occur "Jwt verification fails"
-kubectl patch sidecar default -n istio-system --type='json' -p='[{"op": "add", "path": "/spec/egress/0/hosts/-", "value": "auth/*"}]'
+#kubectl patch sidecar default -n istio-system --type='json' -p='[{"op": "add", "path": "/spec/egress/0/hosts/-", "value": "auth/*"}]'
 kubectl patch requestauthentication dex-jwt -n istio-system --type='json' -p='[{"op": "add", "path": "/spec/jwtRules/0/jwksUri", "value": "http://dex.auth.svc.cluster.local:5556/dex/keys"}]'
 kubectl set env deployment/istiod -n istio-system PILOT_JWT_ENABLE_REMOTE_JWKS=envoy
 sleep 5
