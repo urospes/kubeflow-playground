@@ -57,6 +57,10 @@ kubectl create secret generic git-ssh-key --from-file=id_ed25519=/home/uros/.ssh
 kubectl apply -f "$BASE_DIR"/poddefault-pipelines-token.yaml
 kubectl apply -f "$BASE_DIR"/poddefault-git-ssh-key.yaml
 
+# Deploy custom k8s resources
+kubectl apply -f "$BASE_DIR"/namespaces/
+kubectl apply -f "$BASE_DIR"/storage/
+kubectl apply -f "$BASE_DIR"/deployments/
 kubectl apply -f "$BASE_DIR"/services/
 
 # This fixes a login bug that started to occur "Jwt verification fails"
