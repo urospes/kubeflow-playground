@@ -45,14 +45,9 @@ echo "Creating Kubeflow objects."
 cd "$BASE_DIR"/manifests-1.11.0
 while ! kubectl kustomize example | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying to apply resources"; sleep 60; done
 
-# # Training manager, training runtimes
-# sleep 60
-# echo "Creating CRDs for Kubeflow Trainer..."
-# TRAINER_VERSION="v2.1.0"
-# kubectl apply --server-side -k "https://github.com/kubeflow/trainer.git/manifests/overlays/manager?ref=${TRAINER_VERSION}"
-# sleep 60
-# echo "Creating pytorch training runtime..."
-# kubectl apply --server-side -f "$BASE_DIR"/cluster-training-runtimes/
+# Training manager, training runtimes
+sleep 60
+kubectl apply --server-side -f "$BASE_DIR"/cluster-training-runtimes/
 
 # RBAC, configure permissions for default-editor service account
 kubectl apply  -f "$BASE_DIR"/rbac/
@@ -71,5 +66,6 @@ kubectl set env deployment/istiod -n istio-system PILOT_JWT_ENABLE_REMOTE_JWKS=e
 sleep 5
 kubectl rollout restart deployment/istiod -n istio-system
 kubectl rollout restart deployment/istio-ingressgateway -n istio-system
+
 sleep 20
 echo "Cluster created successfully. Kubeflow is up and running..."
