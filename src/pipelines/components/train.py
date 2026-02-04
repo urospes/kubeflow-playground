@@ -3,7 +3,7 @@ from kfp import dsl
 
 @dsl.component(
     base_image="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime",
-    packages_to_install=["pandas==2.3.3"],
+    packages_to_install=["pandas==2.3.3", "kubeflow==0.2.1"],
 )
 def train(
     train_dataset: dsl.Input[dsl.Dataset],
@@ -18,9 +18,9 @@ def train(
 
     class PandasDataset(torch.utils.data.Dataset):
         def __init__(self, csv_path: str, target_col: str):
-            dataset = pd.read_csv(csv_path)
-            self.features = dataset.drop(target_col, axis=1)
-            self.labels = dataset[target_col]
+            dataframe = pd.read_csv(csv_path)
+            self.features = dataframe.drop(target_col, axis=1)
+            self.labels = dataframe[target_col]
 
         def __len__(self):
             return self.features.shape[0]
@@ -107,21 +107,41 @@ def train(
                 device=device,
             )
             evaluate_model(
-                model=model, dataloader=test_dataloader, loss_fn=loss_fn, device=device
+                model=model,
+                dataloader=test_dataloader,
+                loss_fn=loss_fn,
+                device=device,
             )
         print("Training finished.")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device, backend = ("cuda", "nccl") if torch.cuda.is_available() else ("cpu", "gloo")
+    # torch.distributed.init_process_group(backend=backend)
+    # print(
+    #     "Distributed Training with WORLD_SIZE: {}, RANK: {}, LOCAL_RANK: {}.".format(
+    #         torch.distributed.get_world_size(),
+    #         torch.distributed.get_rank(),
+    #         int(os.getenv("LOCAL_RANK", 0)),
+    #     )
+    # )
 
-    train_dataset = PandasDataset(csv_path=train_dataset.path, target_col="RiskLevel")
+    train_data = PandasDataset(csv_path=train_dataset.path, target_col="RiskLevel")
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=32, shuffle=True
+        train_data,
+        batch_size=32,
+        shuffle=True,
+        # sampler=torch.utils.data.DistributedSampler(train_data, shuffle=True),
     )
-    test_dataset = PandasDataset(csv_path=test_dataset.path, target_col="RiskLevel")
+    test_data = PandasDataset(csv_path=test_dataset.path, target_col="RiskLevel")
     test_dataloader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=32, shuffle=True
+        test_data,
+        batch_size=32,
+        shuffle=False,
+        # sampler=torch.utils.data.DistributedSampler(test_data, shuffle=False),
     )
 
+    # model = torch.nn.parallel.DistributedDataParallel(
+    #     NNClassifier(layer_config=((6, 6), (6, 3))).to(device)
+    # )
     model = NNClassifier(layer_config=((6, 6), (6, 3))).to(device)
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -137,3 +157,8 @@ def train(
     )
 
     torch.save(model.state_dict(), kfp_model.path)
+    # torch.distributed.barrier()
+    # if torch.distributed.get_rank() == 0:
+    #     torch.save(model.state_dict(), kfp_model.path)
+    #     print("Training is finished")
+    # torch.distributed.destroy_process_group()

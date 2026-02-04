@@ -14,7 +14,7 @@ def maternity_prediction_pipeline():
     )
     visualization.visualize_data(dataset=transformation_task.outputs["train_dataset"])
     visualization.visualize_data(dataset=transformation_task.outputs["test_dataset"])
-    with dsl.ParallelFor([1e-2, 1e-3, 1e-4]) as learning_rate:
+    with dsl.ParallelFor([1e-2, 1e-3]) as learning_rate:
         trainer.train(
             train_dataset=transformation_task.outputs["train_dataset"],
             test_dataset=transformation_task.outputs["test_dataset"],
