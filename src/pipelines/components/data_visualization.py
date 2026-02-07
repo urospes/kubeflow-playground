@@ -2,7 +2,7 @@ from kfp import dsl
 
 
 @dsl.component(
-    base_image="python:3.12",
+    base_image="python:3.12-slim",
     packages_to_install=["pandas", "seaborn"],
 )
 def visualize_data(

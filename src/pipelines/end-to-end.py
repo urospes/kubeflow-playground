@@ -3,6 +3,7 @@ from pipelines.components import extract_data as extractor
 from pipelines.components import data_visualization as visualization
 from pipelines.components import feature_transformation as feature_transformator
 from pipelines.components import train as trainer
+from pipelines.components import serving as server
 
 
 @dsl.pipeline(name="maternity-prediction")
@@ -14,13 +15,14 @@ def maternity_prediction_pipeline():
     )
     visualization.visualize_data(dataset=transformation_task.outputs["train_dataset"])
     visualization.visualize_data(dataset=transformation_task.outputs["test_dataset"])
-    with dsl.ParallelFor([1e-2, 1e-3]) as learning_rate:
-        trainer.train(
-            train_dataset=transformation_task.outputs["train_dataset"],
-            test_dataset=transformation_task.outputs["test_dataset"],
-            learning_rate=learning_rate,
-            n_epochs=3,
-        )
+    # with dsl.ParallelFor([1e-2, 1e-3]) as learning_rate:
+    train_task = trainer.train(
+        train_dataset=transformation_task.outputs["train_dataset"],
+        test_dataset=transformation_task.outputs["test_dataset"],
+        learning_rate=1e-3,
+        n_epochs=3,
+    )
+    server.serve_model(model=train_task.outputs["kfp_model"])
 
 
 if __name__ == "__main__":

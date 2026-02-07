@@ -2,7 +2,7 @@ from kfp import dsl
 
 
 @dsl.component(
-    base_image="python:3.12",
+    base_image="python:3.12-slim",
     packages_to_install=["pandas", "scikit-learn"],
 )
 def feature_transformation(
@@ -90,7 +90,7 @@ def feature_transformation(
         remainder="passthrough",
         verbose_feature_names_out=False,
     ).set_output(transform="pandas")
-    
+
     train, test = sklearn.model_selection.train_test_split(
         dataset, test_size=test_size, random_state=42, stratify=dataset[label_col]
     )

@@ -3,7 +3,7 @@ from kfp import dsl
 
 @dsl.component(
     base_image="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime",
-    packages_to_install=["pandas==2.3.3", "kubeflow==0.2.1"],
+    packages_to_install=["pandas==2.3.3", "kubeflow==0.2.1", "onnx"],
 )
 def train(
     train_dataset: dsl.Input[dsl.Dataset],
@@ -15,6 +15,8 @@ def train(
     from typing import Tuple
     import pandas as pd
     import torch
+    import onnx
+    import os
 
     class PandasDataset(torch.utils.data.Dataset):
         def __init__(self, csv_path: str, target_col: str):
@@ -156,7 +158,27 @@ def train(
         device=device,
     )
 
-    torch.save(model.state_dict(), kfp_model.path)
+    model_dir = os.path.join(kfp_model.path, "maternity-data-model", "1")
+    os.makedirs(model_dir, exist_ok=True)
+    onnx_path = os.path.join(model_dir, "model.onnx")
+    dummy_input = torch.randn(1, 6, device=device)
+    torch.onnx.export(
+        model,
+        dummy_input,
+        onnx_path,
+        input_names=["features"],
+        output_names=["risk_prediction"],
+        dynamic_axes={
+            "features": {0: "batch_size"},
+            "risk_prediction": {0: "batch_size"},
+        },
+        opset_version=17,
+    )
+    onnx_model = onnx.load(onnx_path)
+    onnx.checker.check_model(onnx_model)
+    print("ONNX model is valid!")
+    print(onnx.helper.printable_graph(onnx_model.graph))
+
     # torch.distributed.barrier()
     # if torch.distributed.get_rank() == 0:
     #     torch.save(model.state_dict(), kfp_model.path)

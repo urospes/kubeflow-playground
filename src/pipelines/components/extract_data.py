@@ -2,7 +2,7 @@ from kfp import dsl
 
 
 @dsl.component(
-    base_image="python:3.12",
+    base_image="python:3.12-slim",
     packages_to_install=["pandas", "boto3"],
 )
 def extract_data(raw_dataset: dsl.Output[dsl.Dataset]):
