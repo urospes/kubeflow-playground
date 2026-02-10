@@ -57,14 +57,17 @@ kubectl create secret generic git-ssh-key --from-file=id_ed25519=/home/uros/.ssh
 kubectl apply -f "$BASE_DIR"/poddefault-pipelines-token.yaml
 kubectl apply -f "$BASE_DIR"/poddefault-git-ssh-key.yaml
 
-# Deploy custom k8s resources
+# Deploy custom k8s resources g
 kubectl apply -f "$BASE_DIR"/namespaces/
 kubectl apply -f "$BASE_DIR"/storage/
 kubectl apply -f "$BASE_DIR"/deployments/
 kubectl apply -f "$BASE_DIR"/services/
 
+# This fixes "context deadline exceeded" when resolving inference server docker image tags
+kubectl patch configmap config-deployment -n knative-serving \
+  --type merge -p '{"data":{"registries-skipping-tag-resolving":"docker.io,index.docker.io,nvcr.io"}}'
+
 # This fixes a login bug that started to occur "Jwt verification fails"
-#kubectl patch sidecar default -n istio-system --type='json' -p='[{"op": "add", "path": "/spec/egress/0/hosts/-", "value": "auth/*"}]'
 kubectl patch requestauthentication dex-jwt -n istio-system --type='json' -p='[{"op": "add", "path": "/spec/jwtRules/0/jwksUri", "value": "http://dex.auth.svc.cluster.local:5556/dex/keys"}]'
 kubectl set env deployment/istiod -n istio-system PILOT_JWT_ENABLE_REMOTE_JWKS=envoy
 sleep 5
