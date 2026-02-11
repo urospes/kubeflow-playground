@@ -1,0 +1,47 @@
+import argparse
+import cloudpickle
+import kserve
+import numpy as np
+import pandas as pd
+from kserve.storage import Storage
+
+
+class MaternityTransformer(kserve.Model):
+    def __init__(self, name: str, str, predictor_host: str, transformer_uri: str):
+        super().__init__(name)
+
+        local_path = Storage.download(self.transformer_uri)
+        with open(local_path, "rb") as f:
+            self.col_transformer = cloudpickle.load(f)
+
+    def preprocess(self, payload: dict, headers: dict = None) -> dict:
+        transformed = self.col_transformer.transform(pd.DataFrame(payload["features"]))
+        ret = {"features": transformed.values.astype(np.float32).tolist()}
+        print("RAW", payload)
+        print("TRANSFORMED", ret)
+        return ret
+
+    # def postprocess(self, response: dict, headers: dict = None) -> dict:
+    #     # Optional: map ordinal predictions back to labels
+    #     risk_levels = ["low risk", "mid risk", "high risk"]
+    #     predictions = response.get("predictions", [])
+    #     labels = [risk_levels[int(round(p))] for p in predictions]
+    #     return {"predictions": labels}
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(parents=[kserve.model_server.parser])
+    parser.add_argument(
+        "--transformer_uri",
+        required=True,
+        help="Storage URI for the cloudpickle'd transformer artifact",
+    )
+    args, _ = parser.parse_known_args()
+    print("ARGS", args)
+    model = MaternityTransformer(
+        name=args.model_name,
+        predictor_host=args.predictor_host,
+        transformer_uri=args.transformer_uri,
+    )
+    model.load()
+    kserve.ModelServer().start(models=[model])

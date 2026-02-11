@@ -25,8 +25,6 @@ def serve_model(model: dsl.Input[dsl.Model], preprocessor: dsl.Input[dsl.Artifac
 
     with open(preprocessor.path, "rb") as f:
         col_transformer = cloudpickle.load(f)
-    print(type(col_transformer))
-    print(col_transformer)
 
     predictor = V1beta1PredictorSpec(
         min_replicas=1,
