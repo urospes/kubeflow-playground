@@ -3,9 +3,9 @@ from kfp import dsl
 
 @dsl.component(
     base_image="python:3.12-slim",
-    packages_to_install=["kserve"],
+    packages_to_install=["kserve", "cloudpickle", "scikit-learn"],
 )
-def serve_model(model: dsl.Input[dsl.Model]):
+def serve_model(model: dsl.Input[dsl.Model], preprocessor: dsl.Input[dsl.Artifact]):
     from kubernetes import client
     from kserve import (
         constants,
@@ -15,13 +15,18 @@ def serve_model(model: dsl.Input[dsl.Model]):
         V1beta1PredictorSpec,
         V1beta1TritonSpec,
     )
+    import cloudpickle
 
     name = "maternity-data-model"
     namespace = "kubeflow-user-example-com"
 
     if model.path.startswith("/minio/"):
         model_path = "s3://" + model.path[len("/minio/") :]
-    print("EVO ME", model_path)
+
+    with open(preprocessor.path, "rb") as f:
+        col_transformer = cloudpickle.load(f)
+    print(type(col_transformer))
+    print(col_transformer)
 
     predictor = V1beta1PredictorSpec(
         min_replicas=1,

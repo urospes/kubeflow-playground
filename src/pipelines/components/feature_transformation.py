@@ -3,18 +3,20 @@ from kfp import dsl
 
 @dsl.component(
     base_image="python:3.12-slim",
-    packages_to_install=["pandas", "scikit-learn"],
+    packages_to_install=["pandas", "scikit-learn", "cloudpickle"],
 )
 def feature_transformation(
     raw_dataset: dsl.Input[dsl.Dataset],
     train_dataset: dsl.Output[dsl.Dataset],
     test_dataset: dsl.Output[dsl.Dataset],
+    transformer: dsl.Output[dsl.Artifact],
     test_size: float = 0.2,
 ):
     import pandas as pd
     import sklearn
     from sklearn.metrics.pairwise import rbf_kernel
     import numpy as np
+    import cloudpickle
 
     def rbf_similarity(
         data: pd.DataFrame, mode: int | float, gamma: float
@@ -22,6 +24,9 @@ def feature_transformation(
         return rbf_kernel(
             np.asarray(data).reshape(-1, 1), np.array(mode).reshape(-1, 1), gamma=gamma
         )
+
+    def power_transform(data: np.ndarray | pd.Series, power: float):
+        return np.pow(data, power)
 
     with open(raw_dataset.path) as dataset_file:
         dataset = pd.read_csv(dataset_file)
@@ -53,7 +58,9 @@ def feature_transformation(
                         (
                             "power_transform",
                             sklearn.preprocessing.FunctionTransformer(
-                                lambda x: np.pow(x, 2), feature_names_out="one-to-one"
+                                power_transform,
+                                kw_args={"power": 2},
+                                feature_names_out="one-to-one",
                             ),
                         ),
                         ("normalization", sklearn.preprocessing.MinMaxScaler()),
@@ -103,3 +110,5 @@ def feature_transformation(
 
     train.to_csv(train_dataset.path, index=False)
     test.to_csv(test_dataset.path, index=False)
+    with open(transformer.path, "wb") as f:
+        cloudpickle.dump(preprocessor, f)
