@@ -3,11 +3,11 @@ import cloudpickle
 import kserve
 import numpy as np
 import pandas as pd
-from kserve.storage import Storage
+from kserve_storage import Storage
 
 
 class MaternityTransformer(kserve.Model):
-    def __init__(self, name: str, str, predictor_host: str, transformer_uri: str):
+    def __init__(self, name: str, predictor_host: str, transformer_uri: str):
         super().__init__(name)
 
         local_path = Storage.download(self.transformer_uri)
