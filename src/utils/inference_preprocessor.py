@@ -10,7 +10,7 @@ class MaternityTransformer(kserve.Model):
     def __init__(self, name: str, predictor_host: str, transformer_uri: str):
         super().__init__(name)
 
-        local_path = Storage.download(self.transformer_uri)
+        local_path = Storage.download(transformer_uri)
         with open(local_path, "rb") as f:
             self.col_transformer = cloudpickle.load(f)
 
