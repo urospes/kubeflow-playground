@@ -86,26 +86,27 @@ def feature_transformation(
                 ),
                 ["DiastolicBP"],
             ),
-            (
-                "label_ordinal",
-                sklearn.preprocessing.OrdinalEncoder(
-                    categories=[["low risk", "mid risk", "high risk"]]
-                ),
-                label_col,
-            ),
         ],
         remainder="passthrough",
         verbose_feature_names_out=False,
+    ).set_output(transform="pandas")
+
+    label_encoder = sklearn.preprocessing.OrdinalEncoder(
+        categories=[["low risk", "mid risk", "high risk"]]
     ).set_output(transform="pandas")
 
     train, test = sklearn.model_selection.train_test_split(
         dataset, test_size=test_size, random_state=42, stratify=dataset[label_col]
     )
 
-    train = preprocessor.fit_transform(train)
+    x_train = preprocessor.fit_transform(train.drop(columns=label_col))
+    y_train = label_encoder.fit_transform(train[label_col])
+    train = pd.concat([x_train, y_train], axis=1)
     print(train.info())
 
-    test = preprocessor.transform(test)
+    x_test = preprocessor.transform(test.drop(columns=label_col))
+    y_test = label_encoder.transform(test[label_col])
+    test = pd.concat([x_test, y_test], axis=1)
     print(test.info())
 
     train.to_csv(train_dataset.path, index=False)

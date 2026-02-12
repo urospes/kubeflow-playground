@@ -22,10 +22,11 @@ def maternity_prediction_pipeline():
         learning_rate=1e-3,
         n_epochs=3,
     )
-    server.serve_model(
+    serving_task = server.serve_model(
         model=train_task.outputs["kfp_model"],
         preprocessor=transformation_task.outputs["transformer"],
     )
+    serving_task.set_caching_options(False)
 
 
 if __name__ == "__main__":
