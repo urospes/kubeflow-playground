@@ -9,15 +9,21 @@ from kserve_storage import Storage
 from kserve import InferInput, InferRequest
 from kserve.model import PredictorConfig
 
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class MaternityTransformer(kserve.Model):
-    def __init__(self, name: str, predictor_host: str, transformer_uri: str):
-        super().__init__(name)
-        self.predictor_host = predictor_host
-        self.col_transformer = self.__load_preprocessor(path=transformer_uri)
+    def __init__(
+        self, name: str, predictor_config: PredictorConfig, transformer_uri: str
+    ):
+        super().__init__(name, predictor_config)
+        self.transformer_uri = transformer_uri
+        self.load()
+
+    def load(self):
+        self.col_transformer = self.__load_preprocessor(path=self.transformer_uri)
         self.ready = True
 
     @staticmethod
@@ -48,13 +54,6 @@ class MaternityTransformer(kserve.Model):
             infer_inputs=[infer_input],
         )
 
-    # def postprocess(self, response: dict, headers: dict = None) -> dict:
-    #     # Optional: map ordinal predictions back to labels
-    #     risk_levels = ["low risk", "mid risk", "high risk"]
-    #     predictions = response.get("predictions", [])
-    #     labels = [risk_levels[int(round(p))] for p in predictions]
-    #     return {"predictions": labels}
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(parents=[kserve.model_server.parser])
@@ -64,17 +63,17 @@ if __name__ == "__main__":
         help="Storage URI for the cloudpickle'd transformer artifact",
     )
     args, _ = parser.parse_known_args()
-    logger.info("PARSED ARGS: %s", args)
+    predictor_config = PredictorConfig(
+        predictor_host=args.predictor_host,
+        predictor_protocol="v2",  # args.predictor_protocol,
+        predictor_use_ssl=args.predictor_use_ssl,
+        predictor_request_timeout_seconds=args.predictor_request_timeout_seconds,
+        predictor_request_retries=args.predictor_request_retries,
+        predictor_health_check=args.enable_predictor_health_check,
+    )
     model = MaternityTransformer(
         name=args.model_name,
-        predictor_host=args.predictor_host,
+        predictor_config=predictor_config,
         transformer_uri=args.transformer_uri,
     )
-    # TODO: clean this up, override load method in MaternityTransformer
-    # predictor_config = PredictorConfig(
-    #     predictor_host=args.predictor_host,
-    #     predictor_protocol="v2",
-    # )
-    model.load()
-    # model.predictor_config = predictor_config
-    kserve.ModelServer().start(models=[model])
+    kserve.ModelServer(predictor_config=predictor_config).start(models=[model])
