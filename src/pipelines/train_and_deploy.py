@@ -1,28 +1,35 @@
+from typing import List
 from kfp import dsl, client
 from pipelines.components import extract_data as extractor
 from pipelines.components import data_visualization as visualization
 from pipelines.components import feature_transformation as feature_transformator
 from pipelines.components import train as trainer
-from pipelines.components import serving as server
+from pipelines.components import serving as serving
 
 
-@dsl.pipeline(name="maternity-prediction")
-def maternity_prediction_pipeline():
+@dsl.pipeline(name="maternity-model-training")
+def train_and_deploy_pipeline(
+    test_size: float, layer_config: List[int], learning_rate: float, n_epochs: int
+):
     extract_task = extractor.extract_data()
     visualization.visualize_data(dataset=extract_task.output)
     transformation_task = feature_transformator.feature_transformation(
-        raw_dataset=extract_task.output, test_size=0.2
+        raw_dataset=extract_task.output, test_size=test_size
     )
     visualization.visualize_data(dataset=transformation_task.outputs["train_dataset"])
     visualization.visualize_data(dataset=transformation_task.outputs["test_dataset"])
-    # with dsl.ParallelFor([1e-2, 1e-3]) as learning_rate:
+
+    # TODO: for this pipeline, modify training to use training-operator and save model to model registry (or minio bucket)
     train_task = trainer.train(
         train_dataset=transformation_task.outputs["train_dataset"],
         test_dataset=transformation_task.outputs["test_dataset"],
-        learning_rate=1e-3,
-        n_epochs=3,
+        layer_config=layer_config,
+        learning_rate=learning_rate,
+        n_epochs=n_epochs,
     )
-    serving_task = server.serve_model(
+
+    # TODO: modify this task to serve model from registry (or from minio bucket)
+    serving_task = serving.serve_model(
         model=train_task.outputs["kfp_model"],
         preprocessor=transformation_task.outputs["transformer"],
     )
@@ -32,5 +39,11 @@ def maternity_prediction_pipeline():
 if __name__ == "__main__":
     kfp_client = client.Client()
     run = kfp_client.create_run_from_pipeline_func(
-        maternity_prediction_pipeline,
+        train_and_deploy_pipeline,
+        arguments={
+            "layer_config": [6, 6, 3],
+            "learning_rate": 1e-3,
+            "n_epochs": 3,
+            "test_size": 0.2,
+        },
     )

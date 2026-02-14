@@ -1,3 +1,4 @@
+from typing import List
 from kfp import dsl
 
 
@@ -9,10 +10,11 @@ def train(
     train_dataset: dsl.Input[dsl.Dataset],
     test_dataset: dsl.Input[dsl.Dataset],
     kfp_model: dsl.Output[dsl.Model],
+    layer_config: List[int],
     learning_rate: float = 1e-3,
     n_epochs: int = 1,
 ):
-    from typing import Tuple
+    from typing import List
     import pandas as pd
     import torch
     import onnx
@@ -34,12 +36,14 @@ def train(
             )
 
     class NNClassifier(torch.nn.Module):
-        def __init__(self, layer_config: Tuple[Tuple[int, int]]):
+        def __init__(self, layer_config: List[int]):
             super().__init__()
             self.layers = torch.nn.Sequential()
-            for i, (layer_in, layer_out) in enumerate(layer_config):
-                self.layers.append(torch.nn.Linear(layer_in, layer_out))
-                if i < len(layer_config) - 1:
+            for i in range(len(layer_config) - 1):
+                self.layers.append(
+                    torch.nn.Linear(layer_config[i], layer_config[i + 1])
+                )
+                if i < len(layer_config) - 2:
                     self.layers.append(torch.nn.ReLU())
 
         def forward(self, x):
@@ -127,6 +131,7 @@ def train(
     # )
 
     train_data = PandasDataset(csv_path=train_dataset.path, target_col="RiskLevel")
+    print("TRAINING DATASET SIZE:", len(train_data))
     train_dataloader = torch.utils.data.DataLoader(
         train_data,
         batch_size=32,
@@ -134,6 +139,7 @@ def train(
         # sampler=torch.utils.data.DistributedSampler(train_data, shuffle=True),
     )
     test_data = PandasDataset(csv_path=test_dataset.path, target_col="RiskLevel")
+    print("TEST DATASET SIZE:", len(test_data))
     test_dataloader = torch.utils.data.DataLoader(
         test_data,
         batch_size=32,
@@ -144,7 +150,8 @@ def train(
     # model = torch.nn.parallel.DistributedDataParallel(
     #     NNClassifier(layer_config=((6, 6), (6, 3))).to(device)
     # )
-    model = NNClassifier(layer_config=((6, 6), (6, 3))).to(device)
+    model = NNClassifier(layer_config=(6, 3)).to(device)
+    print(model)
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
