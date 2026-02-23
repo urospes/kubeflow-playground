@@ -19,7 +19,6 @@ def train_and_deploy_pipeline(
     visualization.visualize_data(dataset=transformation_task.outputs["train_dataset"])
     visualization.visualize_data(dataset=transformation_task.outputs["test_dataset"])
 
-    # TODO: for this pipeline, modify training to use training-operator and save model to model registry (or minio bucket)
     train_task = trainer.train(
         train_dataset=transformation_task.outputs["train_dataset"],
         test_dataset=transformation_task.outputs["test_dataset"],

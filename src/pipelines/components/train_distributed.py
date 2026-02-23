@@ -4,12 +4,11 @@ from kfp import dsl
 
 @dsl.component(
     base_image="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime",
-    packages_to_install=["pandas==2.3.3", "kubeflow==0.2.1", "onnx"],
+    packages_to_install=["kubeflow==0.2.1"],
 )
 def train(
     train_dataset: dsl.Input[dsl.Dataset],
     test_dataset: dsl.Input[dsl.Dataset],
-    kfp_model: dsl.Output[dsl.Model],
     layer_config: List[int],
     learning_rate: float = 1e-3,
     n_epochs: int = 1,
@@ -23,12 +22,13 @@ def train(
     from kubeflow.trainer.options import Name
     from kubeflow.trainer.constants import constants
 
-    def train_wrapper_func(model_save_path: str, learning_rate: float, n_epochs: int):
+    def train_wrapper_func(learning_rate: float, n_epochs: int):
         import pandas as pd
         import torch
-        from typing import List
-
-        # import onnx
+        import onnx
+        from model_registry import ModelRegistry
+        from model_registry.utils import S3Params
+        from typing import List, Optional
         import os
 
         class PandasDataset(torch.utils.data.Dataset):
@@ -132,6 +132,46 @@ def train(
                     device=device,
                 )
 
+        def save_model(registry: Optional[ModelRegistry] = None):
+            model_dir = os.path.join("tmp", "maternity-data-model", "1")
+            print(model_dir)
+            os.makedirs(model_dir, exist_ok=True)
+            onnx_path = os.path.join(model_dir, "model.onnx")
+            dummy_input = torch.randn(1, 6, device=device)
+            torch.onnx.export(
+                model,
+                dummy_input,
+                onnx_path,
+                input_names=["features"],
+                output_names=["risk_prediction"],
+                dynamic_axes={
+                    "features": {0: "batch_size"},
+                    "risk_prediction": {0: "batch_size"},
+                },
+                opset_version=17,
+            )
+            onnx_model = onnx.load(onnx_path)
+            onnx.checker.check_model(onnx_model)
+            print("ONNX model is valid!")
+            print(onnx.helper.printable_graph(onnx_model.graph))
+            if registry:
+                registry.upload_artifact_and_register_model(
+                    name="maternity-health-predictor",
+                    model_files_path=model_dir,
+                    author="uros pesic",
+                    version="0.0.1",
+                    model_format_name="onnx",
+                    model_format_version="17",
+                    upload_params=S3Params(
+                        bucket_name="models",
+                        s3_prefix="maternity-data/nn-model",
+                        access_key_id="minioadmin",
+                        secret_access_key="minioadmin",
+                        endpoint_url="http://minio-access-service.minio.svc.cluster.local:9000",
+                    ),
+                )
+
+        # --- MAIN ---
         device, backend = (
             ("cuda", "nccl") if torch.cuda.is_available() else ("cpu", "gloo")
         )
@@ -179,30 +219,16 @@ def train(
             device=device,
         )
 
-        # model_dir = os.path.join(kfp_model.path, "maternity-data-model", "1")
-        # os.makedirs(model_dir, exist_ok=True)
-        # onnx_path = os.path.join(model_dir, "model.onnx")
-        # dummy_input = torch.randn(1, 6, device=device)
-        # torch.onnx.export(
-        #     model,
-        #     dummy_input,
-        #     onnx_path,
-        #     input_names=["features"],
-        #     output_names=["risk_prediction"],
-        #     dynamic_axes={
-        #         "features": {0: "batch_size"},
-        #         "risk_prediction": {0: "batch_size"},
-        #     },
-        #     opset_version=17,
-        # )
-        # onnx_model = onnx.load(onnx_path)
-        # onnx.checker.check_model(onnx_model)
-        # print("ONNX model is valid!")
-        # print(onnx.helper.printable_graph(onnx_model.graph))
-
         torch.distributed.barrier()
         if torch.distributed.get_rank() == 0:
-            # torch.save(model.state_dict(), kfp_model.path)
+            save_model(
+                registry=ModelRegistry(
+                    server_address="http://model-registry-service.kubeflow-user-example-com.svc.cluster.local",
+                    port=8080,
+                    author="uros pesic",
+                    is_secure=False,
+                ),
+            )
             print("Training is finished")
         torch.distributed.destroy_process_group()
 
@@ -220,16 +246,20 @@ def train(
         trainer=CustomTrainer(
             func=train_wrapper_func,
             func_args={
-                "model_save_path": kfp_model.path,
                 "learning_rate": learning_rate,
                 "n_epochs": n_epochs,
             },
-            num_nodes=2,
+            num_nodes=1,
             resources_per_node={
                 "cpu": 1,
                 "memory": "2Gi",
             },
-            packages_to_install=["pandas==2.3.3"],
+            packages_to_install=[
+                "pandas==2.3.3",
+                "onnx",
+                "model-registry[s3]",
+                "boto3",
+            ],
         ),
         options=[Name(name="training-maternity-health")],
     )
@@ -237,5 +267,5 @@ def train(
         name=train_job,
         status={constants.TRAINJOB_COMPLETE},
         polling_interval=10,
-        timeout=120,
+        timeout=300,
     )
