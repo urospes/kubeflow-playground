@@ -21,6 +21,7 @@ def train(
         S3DatasetInitializer,
     )
     from kubeflow.trainer.options import Name
+    from kubeflow.trainer.constants import constants
 
     def train_wrapper_func(model_save_path: str, learning_rate: float, n_epochs: int):
         import pandas as pd
@@ -206,8 +207,7 @@ def train(
         torch.distributed.destroy_process_group()
 
     dataset_paths = f"s3://{'/'.join(train_dataset.path.split('/')[2:-1])}/"
-    print(dataset_paths)
-    _ = TrainerClient().train(
+    train_job = TrainerClient().train(
         runtime=TrainerClient().get_runtime("torch-distributed-no-istio"),
         initializer=Initializer(
             dataset=S3DatasetInitializer(
@@ -232,4 +232,10 @@ def train(
             packages_to_install=["pandas==2.3.3"],
         ),
         options=[Name(name="training-maternity-health")],
+    )
+    TrainerClient().wait_for_job_status(
+        name=train_job,
+        status={constants.TRAINJOB_COMPLETE},
+        polling_interval=10,
+        timeout=120,
     )
