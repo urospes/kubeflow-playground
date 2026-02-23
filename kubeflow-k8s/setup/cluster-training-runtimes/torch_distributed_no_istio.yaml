@@ -12,7 +12,33 @@ spec:
   template:
     spec:
       replicatedJobs:
+        - name: dataset-initializer
+          replicas: 1
+          template:
+            metadata:
+              labels:
+                trainer.kubeflow.org/trainjob-ancestor-step: dataset-initializer
+                sidecar.istio.io/inject: "false"
+            spec:
+              template:
+                metadata:
+                  labels:
+                    sidecar.istio.io/inject: "false"
+                spec:
+                  containers:
+                    - name: dataset-initializer
+                      image: ghcr.io/kubeflow/trainer/dataset-initializer
+                      volumeMounts:
+                        - name: shared-dataset
+                          mountPath: /workspace
+                  volumes:
+                    - name: shared-dataset
+                      persistentVolumeClaim:
+                        claimName: training-operator-dataset-pvc
         - name: node
+          dependsOn:
+            - name: dataset-initializer
+              status: Complete
           template:
             metadata:
               labels:
@@ -27,3 +53,10 @@ spec:
                   containers:
                     - name: node
                       image: pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime
+                      volumeMounts:
+                        - name: shared-dataset
+                          mountPath: /workspace
+                  volumes:
+                    - name: shared-dataset
+                      persistentVolumeClaim:
+                        claimName: training-operator-dataset-pvc
