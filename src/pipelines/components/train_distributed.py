@@ -26,6 +26,7 @@ def train(
         import pandas as pd
         import torch
         from typing import List
+
         # import onnx
         import os
 
@@ -129,9 +130,7 @@ def train(
                     loss_fn=loss_fn,
                     device=device,
                 )
-            print("Training finished.")
 
-        print(os.listdir("/workspace"))
         device, backend = (
             ("cuda", "nccl") if torch.cuda.is_available() else ("cpu", "gloo")
         )
@@ -144,25 +143,27 @@ def train(
             )
         )
 
-        train_data = PandasDataset(csv_path="/workspace/train_dataset", target_col="RiskLevel")
+        train_data = PandasDataset(
+            csv_path="/workspace/dataset/train_dataset", target_col="RiskLevel"
+        )
         print("TRAINING DATASET SIZE:", len(train_data))
         train_dataloader = torch.utils.data.DataLoader(
             train_data,
             batch_size=32,
-            shuffle=True,
             sampler=torch.utils.data.DistributedSampler(train_data, shuffle=True),
         )
-        test_data = PandasDataset(csv_path="/workspace/test_dataset", target_col="RiskLevel")
+        test_data = PandasDataset(
+            csv_path="/workspace/dataset/test_dataset", target_col="RiskLevel"
+        )
         print("TEST DATASET SIZE:", len(test_data))
         test_dataloader = torch.utils.data.DataLoader(
             test_data,
             batch_size=32,
-            shuffle=False,
             sampler=torch.utils.data.DistributedSampler(test_data, shuffle=False),
         )
 
         model = torch.nn.parallel.DistributedDataParallel(
-            NNClassifier(layer_config=((6, 6), (6, 3))).to(device)
+            NNClassifier(layer_config=[6, 3]).to(device)
         )
         loss_fn = torch.nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -200,16 +201,21 @@ def train(
 
         torch.distributed.barrier()
         if torch.distributed.get_rank() == 0:
-            torch.save(model.state_dict(), kfp_model.path)
+            # torch.save(model.state_dict(), kfp_model.path)
             print("Training is finished")
         torch.distributed.destroy_process_group()
 
-    dataset_paths = f"s3://{'/'.join(train_dataset.path.split('/')[2:])}/"
+    dataset_paths = f"s3://{'/'.join(train_dataset.path.split('/')[2:-1])}/"
     print(dataset_paths)
     _ = TrainerClient().train(
         runtime=TrainerClient().get_runtime("torch-distributed-no-istio"),
         initializer=Initializer(
-            dataset=S3DatasetInitializer(storage_uri=dataset_paths, endpoint="http://minio-service.kubeflow:9000", access_key_id="minio", secret_access_key="minio123")
+            dataset=S3DatasetInitializer(
+                storage_uri=dataset_paths,
+                endpoint="http://minio-service.kubeflow:9000",
+                access_key_id="minio",
+                secret_access_key="minio123",
+            )
         ),
         trainer=CustomTrainer(
             func=train_wrapper_func,
@@ -218,10 +224,10 @@ def train(
                 "learning_rate": learning_rate,
                 "n_epochs": n_epochs,
             },
-            num_nodes=1,
+            num_nodes=2,
             resources_per_node={
                 "cpu": 1,
-                "memory": "1Gi",
+                "memory": "2Gi",
             },
             packages_to_install=["pandas==2.3.3"],
         ),
