@@ -3,7 +3,7 @@ from kfp import dsl, client
 from pipelines.components import extract_data as extractor
 from pipelines.components import data_visualization as visualization
 from pipelines.components import feature_transformation as feature_transformator
-from pipelines.components import train as trainer
+from pipelines.components import train_distributed as trainer
 from pipelines.components import serving as serving
 
 
@@ -27,13 +27,14 @@ def train_and_deploy_pipeline(
         learning_rate=learning_rate,
         n_epochs=n_epochs,
     )
+    train_task.set_caching_options(False)
 
-    # TODO: modify this task to serve model from registry (or from minio bucket)
-    serving_task = serving.serve_model(
-        model=train_task.outputs["kfp_model"],
-        preprocessor=transformation_task.outputs["transformer"],
-    )
-    serving_task.set_caching_options(False)
+    # # TODO: modify this task to serve model from registry (or from minio bucket)
+    # serving_task = serving.serve_model(
+    #     model=train_task.outputs["kfp_model"],
+    #     preprocessor=transformation_task.outputs["transformer"],
+    # )
+    # serving_task.set_caching_options(False)
 
 
 if __name__ == "__main__":

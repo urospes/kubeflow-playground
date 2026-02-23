@@ -21,3 +21,15 @@
     #         packages_to_install=["pandas==2.3.3"],
     #     ),
     #     options=[Name(name="training-maternity-health")],
+
+
+from model_registry import ModelRegistry
+
+registry = ModelRegistry(
+    server_address="http://model-registry-service.kubeflow-user-example-com.svc.cluster.local",
+    port=8080,
+    author="uros pesic",
+    is_secure=False
+)
+print(registry)
+registry.register_model()
