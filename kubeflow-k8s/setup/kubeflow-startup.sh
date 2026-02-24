@@ -75,4 +75,15 @@ kubectl rollout restart deployment/istiod -n istio-system
 kubectl rollout restart deployment/istio-ingressgateway -n istio-system
 
 sleep 20
+
+# Model registry
+cd "$BASE_DIR"/manifests-model-registry/kustomize
+PROFILE_NAME=kubeflow-user-example-com
+for DIR in options/istio overlays/db ; do (cd $DIR; kustomize edit set namespace $PROFILE_NAME); done
+kubectl apply -k overlays/db
+kubectl apply -k options/istio
+kubectl apply -k options/ui/overlays/istio
+kubectl get configmap centraldashboard-config -n kubeflow -o json | jq '.data.links |= (fromjson | .menuLinks += [{"icon": "assignment", "link": "/model-registry/", "text": "Model Registry", "type": "item"}] | tojson)' | kubectl apply -f - -n kubeflow
+
+sleep 10
 echo "Cluster created successfully. Kubeflow is up and running..."

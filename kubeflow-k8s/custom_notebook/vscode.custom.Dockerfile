@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y openssh-client
 
 RUN sed -i -E "s|^\s*conda activate\s+.*|conda activate ${CONDA_ENV}|" ${HOME_TMP}/.bashrc \
     && sed -i -E "s|^\s*conda activate\s+.*|conda activate ${CONDA_ENV}|" /etc/profile
-    
+
 COPY --chown=${NB_USER}:${NB_GID} dev.requirements.txt /tmp
 
 USER $NB_UID
