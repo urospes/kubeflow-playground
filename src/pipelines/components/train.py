@@ -121,14 +121,6 @@ def train(
         print("Training finished.")
 
     device, backend = ("cuda", "nccl") if torch.cuda.is_available() else ("cpu", "gloo")
-    # torch.distributed.init_process_group(backend=backend)
-    # print(
-    #     "Distributed Training with WORLD_SIZE: {}, RANK: {}, LOCAL_RANK: {}.".format(
-    #         torch.distributed.get_world_size(),
-    #         torch.distributed.get_rank(),
-    #         int(os.getenv("LOCAL_RANK", 0)),
-    #     )
-    # )
 
     train_data = PandasDataset(csv_path=train_dataset.path, target_col="RiskLevel")
     print("TRAINING DATASET SIZE:", len(train_data))
@@ -136,7 +128,6 @@ def train(
         train_data,
         batch_size=32,
         shuffle=True,
-        # sampler=torch.utils.data.DistributedSampler(train_data, shuffle=True),
     )
     test_data = PandasDataset(csv_path=test_dataset.path, target_col="RiskLevel")
     print("TEST DATASET SIZE:", len(test_data))
@@ -144,12 +135,8 @@ def train(
         test_data,
         batch_size=32,
         shuffle=False,
-        # sampler=torch.utils.data.DistributedSampler(test_data, shuffle=False),
     )
 
-    # model = torch.nn.parallel.DistributedDataParallel(
-    #     NNClassifier(layer_config=((6, 6), (6, 3))).to(device)
-    # )
     model = NNClassifier(layer_config=(6, 3)).to(device)
     print(model)
     loss_fn = torch.nn.CrossEntropyLoss()
@@ -185,9 +172,3 @@ def train(
     onnx.checker.check_model(onnx_model)
     print("ONNX model is valid!")
     print(onnx.helper.printable_graph(onnx_model.graph))
-
-    # torch.distributed.barrier()
-    # if torch.distributed.get_rank() == 0:
-    #     torch.save(model.state_dict(), kfp_model.path)
-    #     print("Training is finished")
-    # torch.distributed.destroy_process_group()
