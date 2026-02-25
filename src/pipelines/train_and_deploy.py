@@ -28,12 +28,13 @@ def train_and_deploy_pipeline(
     )
     train_task.set_caching_options(False)
 
-    # # TODO: modify this task to serve model from registry (or from minio bucket)
-    # serving_task = serving.serve_model(
-    #     model=train_task.outputs["kfp_model"],
-    #     preprocessor=transformation_task.outputs["transformer"],
-    # )
-    # serving_task.set_caching_options(False)
+    serving_task = serving.serve_model(
+        model_name="maternity-health-predictor",
+        model_version="0.0.1",
+        preprocessor=transformation_task.outputs["transformer"],
+    )
+    serving_task.after(train_task)
+    serving_task.set_caching_options(False)
 
 
 if __name__ == "__main__":

@@ -3,9 +3,11 @@ from kfp import dsl
 
 @dsl.component(
     base_image="python:3.12-slim",
-    packages_to_install=["kserve", "scikit-learn"],
+    packages_to_install=["kserve", "scikit-learn", "model-registry"],
 )
-def serve_model(model: dsl.Input[dsl.Model], preprocessor: dsl.Input[dsl.Artifact]):
+def serve_model(
+    model_name: str, model_version: str, preprocessor: dsl.Input[dsl.Artifact]
+):
     from kubernetes import client
     from kserve import (
         constants,
@@ -16,12 +18,10 @@ def serve_model(model: dsl.Input[dsl.Model], preprocessor: dsl.Input[dsl.Artifac
         V1beta1TransformerSpec,
         V1beta1TritonSpec,
     )
+    from model_registry import ModelRegistry
 
     name = "maternity-data-model"
     namespace = "kubeflow-user-example-com"
-
-    if model.path.startswith("/minio/"):
-        model_path = "s3://" + model.path[len("/minio/") :]
 
     if preprocessor.path.startswith("/minio/"):
         preprocessor_path = "s3://" + preprocessor.path[len("/minio/") :]
@@ -37,7 +37,6 @@ def serve_model(model: dsl.Input[dsl.Model], preprocessor: dsl.Input[dsl.Artifac
                     name,
                     "--transformer_uri",
                     preprocessor_path,
-    
                 ],
                 env=[
                     client.V1EnvVar(
@@ -73,12 +72,20 @@ def serve_model(model: dsl.Input[dsl.Model], preprocessor: dsl.Input[dsl.Artifac
                 ],
             )
         ],
-        service_account_name="kserve-minio-sa",
+        # service_account_name="kserve-minio-sa",
     )
+
+    registry = ModelRegistry(
+        server_address="http://model-registry-service.kubeflow-user-example-com.svc.cluster.local",
+        port=8080,
+        author="uros pesic",
+        is_secure=False,
+    )
+    model = registry.get_model_artifact(name=model_name, version=model_version)
     predictor = V1beta1PredictorSpec(
         min_replicas=1,
         onnx=V1beta1TritonSpec(
-            storage_uri=model_path,
+            storage_uri=model.uri,
         ),
         service_account_name="kserve-minio-sa",
     )

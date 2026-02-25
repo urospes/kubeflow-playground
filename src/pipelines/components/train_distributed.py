@@ -157,7 +157,7 @@ def train(
             if registry:
                 registry.upload_artifact_and_register_model(
                     name="maternity-health-predictor",
-                    model_files_path=model_dir,
+                    model_files_path="tmp/",
                     author="uros pesic",
                     version="0.0.1",
                     model_format_name="onnx",
