@@ -4,4 +4,4 @@ metadata:
   name: kserve-minio-sa
   namespace: kubeflow-user-example-com
 secrets:
-  - name: minio-kserve-secret
+  - name: model-registry-minio-secret
