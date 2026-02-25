@@ -45,8 +45,13 @@ echo "Creating Kubeflow objects."
 cd "$BASE_DIR"/manifests-1.11.0
 while ! kubectl kustomize example | kubectl apply --server-side --force-conflicts -f -; do echo "Retrying to apply resources"; sleep 60; done
 
+while ! kubectl get namespace kubeflow-user-example-com >/dev/null 2>&1; do
+  echo "Namespace not ready yet, retrying in 10s..."
+  sleep 10
+done
+echo "Namespace exists, proceeding."
+
 # Training manager, training runtimes
-sleep 60
 kubectl apply --server-side -f "$BASE_DIR"/cluster-training-runtimes/
 
 # RBAC, configure permissions for default-editor service account
