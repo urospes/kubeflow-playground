@@ -4,7 +4,7 @@ from kfp import dsl
 
 @dsl.component(
     base_image="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime",
-    packages_to_install=["kubeflow==0.2.1"],
+    packages_to_install=["kubeflow==0.2.1", "kubeflow-trainer-api==2.1.0"],
 )
 def train(
     train_dataset: dsl.Input[dsl.Dataset],
