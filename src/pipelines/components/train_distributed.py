@@ -7,6 +7,7 @@ from kfp import dsl
     packages_to_install=["kubeflow==0.2.1", "kubeflow-trainer-api==2.1.0"],
 )
 def train(
+    metadata: dict,
     train_dataset: dsl.Input[dsl.Dataset],
     test_dataset: dsl.Input[dsl.Dataset],
     layer_config: List[int],
@@ -22,7 +23,7 @@ def train(
     from kubeflow.trainer.options import Name
     from kubeflow.trainer.constants import constants
 
-    def train_wrapper_func(learning_rate: float, n_epochs: int):
+    def train_wrapper_func(learning_rate: float, n_epochs: int, metadata: dict):
         import pandas as pd
         import torch
         import onnx
@@ -133,8 +134,7 @@ def train(
                 )
 
         def save_model(registry: Optional[ModelRegistry] = None):
-            model_dir = os.path.join("tmp", "maternity-data-model", "1")
-            print(model_dir)
+            model_dir = os.path.join("tmp", metadata["model_name"], "1")
             os.makedirs(model_dir, exist_ok=True)
             onnx_path = os.path.join(model_dir, "model.onnx")
             dummy_input = torch.randn(1, 6, device=device)
@@ -154,17 +154,18 @@ def train(
             onnx.checker.check_model(onnx_model)
             print("ONNX model is valid!")
             print(onnx.helper.printable_graph(onnx_model.graph))
+
             if registry:
                 registry.upload_artifact_and_register_model(
-                    name="maternity-health-predictor",
+                    name=metadata["model_name"],
                     model_files_path="tmp/",
                     author="uros pesic",
-                    version="0.0.1",
+                    version=metadata["model_version"],
                     model_format_name="onnx",
                     model_format_version="17",
                     upload_params=S3Params(
                         bucket_name="models",
-                        s3_prefix="maternity-data/nn-model",
+                        s3_prefix=f"{metadata['model_name']}/nn-model",
                         access_key_id="minioadmin",
                         secret_access_key="minioadmin",
                         endpoint_url="http://minio-access-service.minio.svc.cluster.local:9000",
@@ -238,7 +239,7 @@ def train(
         initializer=Initializer(
             dataset=S3DatasetInitializer(
                 storage_uri=dataset_paths,
-                endpoint="http://minio-service.kubeflow:9000",
+                endpoint="http://minio-service.kubeflow.svc.cluster.local:9000",
                 access_key_id="minio",
                 secret_access_key="minio123",
             )
@@ -248,6 +249,7 @@ def train(
             func_args={
                 "learning_rate": learning_rate,
                 "n_epochs": n_epochs,
+                "metadata": metadata,
             },
             num_nodes=1,
             resources_per_node={
@@ -261,7 +263,7 @@ def train(
                 "boto3",
             ],
         ),
-        options=[Name(name="training-maternity-health")],
+        options=[Name(name=metadata["job_name"])],
     )
     TrainerClient().wait_for_job_status(
         name=train_job,

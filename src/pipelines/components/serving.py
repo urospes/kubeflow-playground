@@ -1,3 +1,4 @@
+from typing import Dict
 from kfp import dsl
 
 
@@ -5,9 +6,8 @@ from kfp import dsl
     base_image="python:3.12-slim",
     packages_to_install=["kserve", "scikit-learn", "model-registry"],
 )
-def serve_model(
-    model_name: str, model_version: str, preprocessor: dsl.Input[dsl.Artifact]
-):
+def serve_model(metadata: Dict, preprocessor: dsl.Input[dsl.Artifact]):
+    from datetime import datetime
     from kubernetes import client
     from kserve import (
         constants,
@@ -20,8 +20,8 @@ def serve_model(
     )
     from model_registry import ModelRegistry
 
-    name = "maternity-data-model"
     namespace = "kubeflow-user-example-com"
+    predictor_service_name = f"{metadata['model_name']}-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}-predictor"
 
     if preprocessor.path.startswith("/minio/"):
         preprocessor_path = "s3://" + preprocessor.path[len("/minio/") :]
@@ -34,7 +34,7 @@ def serve_model(
                 image="urospes/inference-preprocessor-custom:latest",
                 args=[
                     "--model_name",
-                    name,
+                    metadata["model_name"],
                     "--transformer_uri",
                     preprocessor_path,
                 ],
@@ -59,7 +59,7 @@ def serve_model(
                     ),
                     client.V1EnvVar(
                         name="AWS_ENDPOINT_URL",
-                        value="http://minio-service.kubeflow:9000",
+                        value="http://minio-service.kubeflow.svc.cluster.local:9000",
                     ),
                     client.V1EnvVar(
                         name="S3_USE_HTTPS",
@@ -72,7 +72,6 @@ def serve_model(
                 ],
             )
         ],
-        # service_account_name="kserve-minio-sa",
     )
 
     registry = ModelRegistry(
@@ -81,7 +80,9 @@ def serve_model(
         author="uros pesic",
         is_secure=False,
     )
-    model = registry.get_model_artifact(name=model_name, version=model_version)
+    model = registry.get_model_artifact(
+        name=metadata["model_name"], version=metadata["model_version"]
+    )
     predictor = V1beta1PredictorSpec(
         min_replicas=1,
         onnx=V1beta1TritonSpec(
@@ -94,7 +95,7 @@ def serve_model(
         api_version=constants.KSERVE_V1BETA1,
         kind="InferenceService",
         metadata=client.V1ObjectMeta(
-            name=name,
+            name=predictor_service_name,
             namespace=namespace,
             annotations={"sidecar.istio.io/inject": "false"},
         ),
@@ -106,4 +107,4 @@ def serve_model(
     kserve_client = KServeClient()
     kserve_client.create(isvc)
 
-    kserve_client.wait_isvc_ready(name, namespace=namespace)
+    kserve_client.wait_isvc_ready(predictor_service_name, namespace=namespace)

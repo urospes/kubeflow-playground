@@ -1,4 +1,6 @@
-from typing import List
+from typing import List, Dict
+from datetime import datetime
+import uuid
 from kfp import dsl, client
 from pipelines.components import extract_data as extractor
 from pipelines.components import data_visualization as visualization
@@ -9,7 +11,11 @@ from pipelines.components import serving as serving
 
 @dsl.pipeline(name="maternity-model-training")
 def train_and_deploy_pipeline(
-    test_size: float, layer_config: List[int], learning_rate: float, n_epochs: int
+    test_size: float,
+    layer_config: List[int],
+    learning_rate: float,
+    n_epochs: int,
+    metadata: Dict,
 ):
     extract_task = extractor.extract_data()
     visualization.visualize_data(dataset=extract_task.output)
@@ -25,12 +31,12 @@ def train_and_deploy_pipeline(
         layer_config=layer_config,
         learning_rate=learning_rate,
         n_epochs=n_epochs,
+        metadata=metadata,
     )
     train_task.set_caching_options(False)
 
     serving_task = serving.serve_model(
-        model_name="maternity-health-predictor",
-        model_version="0.0.1",
+        metadata=metadata,
         preprocessor=transformation_task.outputs["transformer"],
     )
     serving_task.after(train_task)
@@ -46,5 +52,10 @@ if __name__ == "__main__":
             "learning_rate": 1e-3,
             "n_epochs": 3,
             "test_size": 0.2,
+            "metadata": {
+                "model_name": "maternity-data-model",
+                "model_version": f"{uuid.uuid4().hex[:8]}",
+                "job_name": f"trainjob-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}",
+            },
         },
     )
