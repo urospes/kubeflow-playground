@@ -10,6 +10,7 @@ def train(
     train_dataset: dsl.Input[dsl.Dataset],
     test_dataset: dsl.Input[dsl.Dataset],
     kfp_model: dsl.Output[dsl.Model],
+    metrics: dsl.Output[dsl.Metrics],
     layer_config: List[int],
     learning_rate: float = 1e-3,
     n_epochs: int = 1,
@@ -77,18 +78,26 @@ def train(
         dataloader: torch.utils.data.DataLoader,
         loss_fn: torch.nn.Module,
         device: str,
-    ):
+    ) -> float:
         model.eval()
-        test_loss, n_correct = 0, 0
+        test_loss = 0
+        all_preds = []
+        all_targets = []
+
         with torch.no_grad():
             for x_test, y_test in dataloader:
                 x_test = x_test.to(device)
                 y_test = y_test.to(device)
                 y_pred = model(x_test)
                 test_loss += loss_fn(y_pred, y_test).item()
-                n_correct += (y_pred.argmax(1) == y_test).type(torch.float).sum().item()
+                all_preds.append(y_pred.cpu())
+                all_targets.append(y_test.cpu())
 
         print(f"Avg. loss: {test_loss / len(dataloader):>8f} \n")
+        all_preds = torch.cat(all_preds)
+        all_targets = torch.cat(all_targets)
+        mse = torch.nn.functional.mse_loss(all_preds, all_targets).item()
+        return mse
 
     def train_loop(
         model: NNRegressor,
@@ -98,7 +107,7 @@ def train(
         optimizer: torch.optim.Optimizer,
         n_epochs: int,
         device: str,
-    ):
+    ) -> float:
         for i in range(n_epochs):
             print(f"Epoch {i + 1}\n------------------------------------------")
             train_model(
@@ -108,13 +117,14 @@ def train(
                 optimizer=optimizer,
                 device=device,
             )
-            evaluate_model(
+            eval_metrics = evaluate_model(
                 model=model,
                 dataloader=test_dataloader,
                 loss_fn=loss_fn,
                 device=device,
             )
         print("Training finished.")
+        return eval_metrics
 
     device, backend = ("cuda", "nccl") if torch.cuda.is_available() else ("cpu", "gloo")
 
@@ -138,7 +148,7 @@ def train(
     loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    train_loop(
+    eval_metrics = train_loop(
         model=model,
         train_dataloader=train_dataloader,
         test_dataloader=test_dataloader,
@@ -147,3 +157,5 @@ def train(
         n_epochs=n_epochs,
         device=device,
     )
+
+    metrics.log_metric("MSE", eval_metrics)

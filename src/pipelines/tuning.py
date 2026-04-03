@@ -34,9 +34,14 @@ def model_tuning_pipeline(
 
 
 if __name__ == "__main__":
+    # training_hyperparameter_space = {
+    #     "layer_configs": [[8, 8, 4, 1], [8, 4, 1]],
+    #     "learning_rates": [1e-2, 1e-3],
+    #     "n_epochs": [5],
+    # }
     training_hyperparameter_space = {
-        "layer_configs": [[8, 8, 4, 1], [8, 4, 1]],
-        "learning_rates": [1e-2, 1e-3],
+        "layer_configs": [[8, 8, 4, 1]],
+        "learning_rates": [1e-2],
         "n_epochs": [5],
     }
 
