@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class MaternityTransformer(kserve.Model):
+class ModelInputTransformer(kserve.Model):
     def __init__(
         self, name: str, predictor_config: PredictorConfig, transformer_uri: str
     ):
@@ -65,13 +65,13 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
     predictor_config = PredictorConfig(
         predictor_host=args.predictor_host,
-        predictor_protocol="v2",  # args.predictor_protocol,
+        predictor_protocol="v2",
         predictor_use_ssl=args.predictor_use_ssl,
         predictor_request_timeout_seconds=args.predictor_request_timeout_seconds,
         predictor_request_retries=args.predictor_request_retries,
         predictor_health_check=args.enable_predictor_health_check,
     )
-    model = MaternityTransformer(
+    model = ModelInputTransformer(
         name=args.model_name,
         predictor_config=predictor_config,
         transformer_uri=args.transformer_uri,

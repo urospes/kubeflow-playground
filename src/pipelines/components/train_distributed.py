@@ -23,7 +23,9 @@ def train(
     from kubeflow.trainer.options import Name
     from kubeflow.trainer.constants import constants
 
-    def train_wrapper_func(learning_rate: float, n_epochs: int, metadata: dict):
+    def train_wrapper_func(
+        layer_config: list[int], learning_rate: float, n_epochs: int, metadata: dict
+    ):
         import pandas as pd
         import torch
         import onnx
@@ -44,10 +46,10 @@ def train(
             def __getitem__(self, idx: int):
                 return (
                     torch.tensor(self.features.iloc[idx], dtype=torch.float32),
-                    torch.tensor(self.labels.iloc[idx], dtype=torch.long),
+                    torch.tensor(self.labels.iloc[idx], dtype=torch.float32).view(1),
                 )
 
-        class NNClassifier(torch.nn.Module):
+        class NNRegresor(torch.nn.Module):
             def __init__(self, layer_config: List[int]):
                 super().__init__()
                 self.layers = torch.nn.Sequential()
@@ -62,7 +64,7 @@ def train(
                 return self.layers(x)
 
         def train_model(
-            model: NNClassifier,
+            model: NNRegresor,
             dataloader: torch.utils.data.DataLoader,
             optimizer: torch.optim.Optimizer,
             loss_fn: torch.nn.Module,
@@ -87,7 +89,7 @@ def train(
                     print(f"loss: {loss:>7f}  [{current:>5d}/{train_size:>5d}]")
 
         def evaluate_model(
-            model: NNClassifier,
+            model: NNRegresor,
             dataloader: torch.utils.data.DataLoader,
             loss_fn: torch.nn.Module,
             device: str,
@@ -104,12 +106,10 @@ def train(
                         (y_pred.argmax(1) == y_test).type(torch.float).sum().item()
                     )
 
-            print(
-                f"Accuracy: {(100 * n_correct / len(dataloader.dataset)):>0.1f}%, Avg. loss: {test_loss / len(dataloader):>8f} \n"
-            )
+            print(f"Avg. loss: {test_loss / len(dataloader):>8f} \n")
 
         def train_loop(
-            model: NNClassifier,
+            model: NNRegresor,
             train_dataloader: torch.utils.data.DataLoader,
             test_dataloader: torch.utils.data.DataLoader,
             loss_fn: torch.nn.Module,
@@ -137,16 +137,16 @@ def train(
             model_dir = os.path.join("tmp", metadata["model_name"], "1")
             os.makedirs(model_dir, exist_ok=True)
             onnx_path = os.path.join(model_dir, "model.onnx")
-            dummy_input = torch.randn(1, 6, device=device)
+            dummy_input = torch.randn(1, 8, device=device)
             torch.onnx.export(
                 model,
                 dummy_input,
                 onnx_path,
                 input_names=["features"],
-                output_names=["risk_prediction"],
+                output_names=["fuel_consumption"],
                 dynamic_axes={
                     "features": {0: "batch_size"},
-                    "risk_prediction": {0: "batch_size"},
+                    "fuel_consumption": {0: "batch_size"},
                 },
                 opset_version=17,
             )
@@ -186,7 +186,7 @@ def train(
         )
 
         train_data = PandasDataset(
-            csv_path="/workspace/dataset/train_dataset", target_col="RiskLevel"
+            csv_path="/workspace/dataset/train_dataset", target_col="vehicle_fuel"
         )
         print("TRAINING DATASET SIZE:", len(train_data))
         train_dataloader = torch.utils.data.DataLoader(
@@ -195,7 +195,7 @@ def train(
             sampler=torch.utils.data.DistributedSampler(train_data, shuffle=True),
         )
         test_data = PandasDataset(
-            csv_path="/workspace/dataset/test_dataset", target_col="RiskLevel"
+            csv_path="/workspace/dataset/test_dataset", target_col="vehicle_fuel"
         )
         print("TEST DATASET SIZE:", len(test_data))
         test_dataloader = torch.utils.data.DataLoader(
@@ -205,9 +205,9 @@ def train(
         )
 
         model = torch.nn.parallel.DistributedDataParallel(
-            NNClassifier(layer_config=[6, 3]).to(device)
+            NNRegresor(layer_config=tuple(layer_config)).to(device)
         )
-        loss_fn = torch.nn.CrossEntropyLoss()
+        loss_fn = torch.nn.MSELoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
         train_loop(
@@ -247,11 +247,12 @@ def train(
         trainer=CustomTrainer(
             func=train_wrapper_func,
             func_args={
+                "layer_config": layer_config,
                 "learning_rate": learning_rate,
                 "n_epochs": n_epochs,
                 "metadata": metadata,
             },
-            num_nodes=1,
+            num_nodes=2,
             resources_per_node={
                 "cpu": 1,
                 "memory": "2Gi",

@@ -9,7 +9,7 @@ from pipelines.components import train_distributed as trainer
 from pipelines.components import serving as serving
 
 
-@dsl.pipeline(name="maternity-model-training")
+@dsl.pipeline(name="car-emission-model-training")
 def train_and_deploy_pipeline(
     test_size: float,
     layer_config: List[int],
@@ -17,7 +17,7 @@ def train_and_deploy_pipeline(
     n_epochs: int,
     metadata: Dict,
 ):
-    extract_task = extractor.extract_data()
+    extract_task = extractor.extract_data(file_name="emission_data.csv")
     visualization.visualize_data(dataset=extract_task.output)
     transformation_task = feature_transformator.feature_transformation(
         raw_dataset=extract_task.output, test_size=test_size
@@ -48,13 +48,13 @@ if __name__ == "__main__":
     run = kfp_client.create_run_from_pipeline_func(
         train_and_deploy_pipeline,
         arguments={
-            "layer_config": [6, 6, 3],
+            "layer_config": [8, 4, 1],
             "learning_rate": 1e-3,
-            "n_epochs": 3,
+            "n_epochs": 5,
             "test_size": 0.2,
             "metadata": {
-                "model_name": "maternity-data-model",
-                "model_version": f"{uuid.uuid4().hex[:8]}",
+                "model_name": "car-emission-model",
+                "model_version": f"1.0-{uuid.uuid4().hex[:8]}",
                 "job_name": f"trainjob-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}",
             },
         },

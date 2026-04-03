@@ -4,7 +4,7 @@ from kfp import dsl
 
 @dsl.component(
     base_image="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime",
-    packages_to_install=["pandas==2.3.3", "kubeflow==0.2.1", "onnx"],
+    packages_to_install=["pandas==2.3.3", "kubeflow==0.2.1"],
 )
 def train(
     train_dataset: dsl.Input[dsl.Dataset],
@@ -88,9 +88,7 @@ def train(
                 test_loss += loss_fn(y_pred, y_test).item()
                 n_correct += (y_pred.argmax(1) == y_test).type(torch.float).sum().item()
 
-        print(
-            f"Accuracy: {(100 * n_correct / len(dataloader.dataset)):>0.1f}%, Avg. loss: {test_loss / len(dataloader):>8f} \n"
-        )
+        print(f"Avg. loss: {test_loss / len(dataloader):>8f} \n")
 
     def train_loop(
         model: NNRegressor,
