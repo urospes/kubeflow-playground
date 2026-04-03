@@ -31,7 +31,7 @@ def serve_model(metadata: Dict, preprocessor: dsl.Input[dsl.Artifact]):
         containers=[
             client.V1Container(
                 name="inference-preprocessor",
-                image="urospes/inference-preprocessor-custom:1.0",
+                image="urospes/inference-preprocessor-custom:1.1",
                 args=[
                     "--model_name",
                     metadata["model_name"],

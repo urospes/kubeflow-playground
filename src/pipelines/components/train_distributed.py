@@ -252,7 +252,7 @@ def train(
                 "n_epochs": n_epochs,
                 "metadata": metadata,
             },
-            num_nodes=2,
+            num_nodes=1,
             resources_per_node={
                 "cpu": 1,
                 "memory": "2Gi",
