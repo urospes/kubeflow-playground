@@ -48,7 +48,7 @@ def visualize_data(
     def plot_corr_matrix(
         dataset: pd.DataFrame, cols_of_interest: List[str]
     ) -> plt.Figure:
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(14, 14))
         plt.title("Correlation Matrix")
         sb.heatmap(
             dataset[cols_of_interest].corr(),

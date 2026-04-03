@@ -6,14 +6,14 @@ from pipelines.components import feature_transformation as feature_transformator
 from pipelines.components import train as trainer
 
 
-@dsl.pipeline(name="maternity-health-model-tuning")
+@dsl.pipeline(name="car-emission-model-tuning")
 def model_tuning_pipeline(
     test_size: float,
     layer_configs: List[List[int]],
     learning_rates: List[float],
     n_epochs: List[int],
 ):
-    extract_task = extractor.extract_data()
+    extract_task = extractor.extract_data(file_name="emission_data.csv")
     visualization.visualize_data(dataset=extract_task.output)
     transformation_task = feature_transformator.feature_transformation(
         raw_dataset=extract_task.output, test_size=test_size
@@ -35,9 +35,9 @@ def model_tuning_pipeline(
 
 if __name__ == "__main__":
     training_hyperparameter_space = {
-        "layer_configs": [[6, 6, 3], [6, 8, 3]],
+        "layer_configs": [[8, 8, 4, 1], [8, 4, 1]],
         "learning_rates": [1e-2, 1e-3],
-        "n_epochs": [3],
+        "n_epochs": [5],
     }
 
     kfp_client = client.Client()

@@ -17,8 +17,6 @@ def train(
     from typing import List
     import pandas as pd
     import torch
-    import onnx
-    import os
 
     class PandasDataset(torch.utils.data.Dataset):
         def __init__(self, csv_path: str, target_col: str):
@@ -32,10 +30,10 @@ def train(
         def __getitem__(self, idx: int):
             return (
                 torch.tensor(self.features.iloc[idx], dtype=torch.float32),
-                torch.tensor(self.labels.iloc[idx], dtype=torch.long),
+                torch.tensor(self.labels.iloc[idx], dtype=torch.float32).view(1),
             )
 
-    class NNClassifier(torch.nn.Module):
+    class NNRegressor(torch.nn.Module):
         def __init__(self, layer_config: List[int]):
             super().__init__()
             self.layers = torch.nn.Sequential()
@@ -50,7 +48,7 @@ def train(
             return self.layers(x)
 
     def train_model(
-        model: NNClassifier,
+        model: NNRegressor,
         dataloader: torch.utils.data.DataLoader,
         optimizer: torch.optim.Optimizer,
         loss_fn: torch.nn.Module,
@@ -75,7 +73,7 @@ def train(
                 print(f"loss: {loss:>7f}  [{current:>5d}/{train_size:>5d}]")
 
     def evaluate_model(
-        model: NNClassifier,
+        model: NNRegressor,
         dataloader: torch.utils.data.DataLoader,
         loss_fn: torch.nn.Module,
         device: str,
@@ -95,7 +93,7 @@ def train(
         )
 
     def train_loop(
-        model: NNClassifier,
+        model: NNRegressor,
         train_dataloader: torch.utils.data.DataLoader,
         test_dataloader: torch.utils.data.DataLoader,
         loss_fn: torch.nn.Module,
@@ -122,14 +120,14 @@ def train(
 
     device, backend = ("cuda", "nccl") if torch.cuda.is_available() else ("cpu", "gloo")
 
-    train_data = PandasDataset(csv_path=train_dataset.path, target_col="RiskLevel")
+    train_data = PandasDataset(csv_path=train_dataset.path, target_col="vehicle_fuel")
     print("TRAINING DATASET SIZE:", len(train_data))
     train_dataloader = torch.utils.data.DataLoader(
         train_data,
         batch_size=32,
         shuffle=True,
     )
-    test_data = PandasDataset(csv_path=test_dataset.path, target_col="RiskLevel")
+    test_data = PandasDataset(csv_path=test_dataset.path, target_col="vehicle_fuel")
     print("TEST DATASET SIZE:", len(test_data))
     test_dataloader = torch.utils.data.DataLoader(
         test_data,
@@ -137,9 +135,9 @@ def train(
         shuffle=False,
     )
 
-    model = NNClassifier(layer_config=(6, 3)).to(device)
+    model = NNRegressor(layer_config=tuple(layer_config)).to(device)
     print(model)
-    loss_fn = torch.nn.CrossEntropyLoss()
+    loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     train_loop(
@@ -151,24 +149,3 @@ def train(
         n_epochs=n_epochs,
         device=device,
     )
-
-    model_dir = os.path.join(kfp_model.path, "maternity-data-model", "1")
-    os.makedirs(model_dir, exist_ok=True)
-    onnx_path = os.path.join(model_dir, "model.onnx")
-    dummy_input = torch.randn(1, 6, device=device)
-    torch.onnx.export(
-        model,
-        dummy_input,
-        onnx_path,
-        input_names=["features"],
-        output_names=["risk_prediction"],
-        dynamic_axes={
-            "features": {0: "batch_size"},
-            "risk_prediction": {0: "batch_size"},
-        },
-        opset_version=17,
-    )
-    onnx_model = onnx.load(onnx_path)
-    onnx.checker.check_model(onnx_model)
-    print("ONNX model is valid!")
-    print(onnx.helper.printable_graph(onnx_model.graph))

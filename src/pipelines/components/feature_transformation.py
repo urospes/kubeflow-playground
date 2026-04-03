@@ -32,10 +32,17 @@ def feature_transformation(
         dataset = pd.read_csv(dataset_file)
     print(dataset.head())
 
-    label_col = ["RiskLevel"]
-    numeric_no_skew_cols = ["Age"]
-    numeric_left_skew_cols = ["BS", "BodyTemp"]
-    numeric_right_skew_cols = ["HeartRate"]
+    label_col = ["vehicle_fuel"]
+    numeric_no_skew_cols = ["vehicle_noise"]
+    numeric_left_skew_cols = []
+    numeric_right_skew_cols = [
+        "vehicle_CO",
+        "vehicle_CO2",
+        "vehicle_HC",
+        "vehicle_NOx",
+        "vehicle_PMx",
+    ]
+    numeric_slight_right_skew_cols = ["vehicle_speed"]
 
     preprocessor = sklearn.compose.ColumnTransformer(
         transformers=[
@@ -45,14 +52,21 @@ def feature_transformation(
                 numeric_no_skew_cols,
             ),
             (
-                "numeric_left_skew",
+                "numeric_right_skew",
                 sklearn.preprocessing.FunctionTransformer(
-                    np.log, feature_names_out="one-to-one"
+                    np.log1p, feature_names_out="one-to-one"
                 ),
-                numeric_left_skew_cols,
+                numeric_right_skew_cols,
             ),
             (
-                "numeric_right_skew",
+                "numeric_slight_right_skew",
+                sklearn.preprocessing.FunctionTransformer(
+                    np.sqrt, feature_names_out="one-to-one"
+                ),
+                numeric_slight_right_skew_cols,
+            ),
+            (
+                "numeric_left_skew",
                 sklearn.pipeline.Pipeline(
                     [
                         (
@@ -66,46 +80,37 @@ def feature_transformation(
                         ("normalization", sklearn.preprocessing.MinMaxScaler()),
                     ]
                 ),
-                numeric_right_skew_cols,
+                numeric_left_skew_cols,
             ),
             (
-                "multimodal_systolic_bp",
+                "multimodal_vehicle_angle",
                 sklearn.preprocessing.FunctionTransformer(
                     rbf_similarity,
-                    kw_args={"mode": 120, "gamma": 0.01},
+                    kw_args={"mode": 250, "gamma": 0.005},
                     feature_names_out="one-to-one",
                 ),
-                ["SystolicBP"],
-            ),
-            (
-                "multimodal_diastolic_bp",
-                sklearn.preprocessing.FunctionTransformer(
-                    rbf_similarity,
-                    kw_args={"mode": 80, "gamma": 0.01},
-                    feature_names_out="one-to-one",
-                ),
-                ["DiastolicBP"],
+                ["vehicle_angle"],
             ),
         ],
-        remainder="passthrough",
+        remainder="drop",
         verbose_feature_names_out=False,
     ).set_output(transform="pandas")
 
-    label_encoder = sklearn.preprocessing.OrdinalEncoder(
-        categories=[["low risk", "mid risk", "high risk"]]
+    label_transformer = sklearn.preprocessing.FunctionTransformer(
+        np.log1p, feature_names_out="one-to-one"
     ).set_output(transform="pandas")
 
     train, test = sklearn.model_selection.train_test_split(
-        dataset, test_size=test_size, random_state=42, stratify=dataset[label_col]
+        dataset, test_size=test_size, random_state=42
     )
 
     x_train = preprocessor.fit_transform(train.drop(columns=label_col))
-    y_train = label_encoder.fit_transform(train[label_col])
+    y_train = label_transformer.fit_transform(train[label_col])
     train = pd.concat([x_train, y_train], axis=1)
     print(train.info())
 
     x_test = preprocessor.transform(test.drop(columns=label_col))
-    y_test = label_encoder.transform(test[label_col])
+    y_test = label_transformer.transform(test[label_col])
     test = pd.concat([x_test, y_test], axis=1)
     print(test.info())
 
