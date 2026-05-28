@@ -4,7 +4,7 @@ from kfp import dsl
 
 @dsl.component(
     base_image="python:3.12-slim",
-    packages_to_install=["kserve", "scikit-learn", "model-registry"],
+    packages_to_install=["kserve==0.17.0", "scikit-learn==1.8.0", "model-registry==0.3.8"],
 )
 def serve_model(metadata: Dict, preprocessor: dsl.Input[dsl.Artifact]):
     from datetime import datetime
